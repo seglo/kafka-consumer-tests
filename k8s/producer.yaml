@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      run: producer
+  template:
+    metadata:
+      labels:
+        run: producer
+    spec:
+      containers:
+        - command:
+            - /opt/kafka/bin/kafka-producer-perf-test.sh
+            - --topic
+            - simple-topic
+            - --num-records
+            - "10000000"
+            - --record-size
+            - "100"
+            - --throughput
+            - "50000"
+            - --producer-props
+            - bootstrap.servers=pipelines-strimzi-kafka-bootstrap.lightbend.svc.cluster.local:9092
+          image: strimzi/kafka
+          imagePullPolicy: Always
+          name: producer
+          resources: {}
