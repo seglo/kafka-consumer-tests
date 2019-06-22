@@ -4,7 +4,7 @@ import java.time.Duration
 import java.util.Properties
 
 import com.typesafe.config.ConfigFactory
-import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
+import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
@@ -15,42 +15,50 @@ object RawKafkaClient extends App {
 
   val kafkaHost = conf.getString("kafkaHost")
   val topic = conf.getString("topic")
+  val partitions = conf.getInt("partitions")
   val consumerGroup = conf.getString("consumerGroup")
   val clientId = conf.getString("clientId")
-  val consumeMessagePerSecond = conf.getInt("consumeMessagePerSecond")
-  val commitGroupSize = conf.getInt("commitGroupSize")
-  val partitions = 10
+  val maxPollRecords = conf.getInt("maxPollRecords")
+  val pausePartitions = conf.getBoolean("pausePartitions")
 
+  val allPartitions = (0 until partitions).toSet
   val consumerProps: Properties = {
     val p = new Properties()
+    p.put(ConsumerConfig.CLIENT_ID_CONFIG, clientId)
     p.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroup)
     p.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaHost)
+    p.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords.toString)
     p
   }
 
   val consumer = new KafkaConsumer(consumerProps, new ByteArrayDeserializer, new ByteArrayDeserializer)
   consumer.subscribe(List(topic).asJava)
 
-  val pollF = () => {
-    Thread.sleep(1000) // 1s
-
+  def pollF(): ConsumerRecords[Array[Byte], Array[Byte]] = {
     val resumedPartitionNum = scala.util.Random.nextInt(partitions)
-    val pausedPartitionsNums = (0 until partitions).filter(_ != resumedPartitionNum).toSet
-    val resumedPartition = Set(new TopicPartition(topic, resumedPartitionNum)).asJava
+    val pausedPartitionsNums = allPartitions.filter(_ != resumedPartitionNum)
     val pausedPartitions = pausedPartitionsNums.map(p => new TopicPartition(topic, p)).asJava
 
-    println(s"Partition to resume: $resumedPartitionNum")
-    println(s"Partitions to pause: $pausedPartitionsNums")
+    val assignment = consumer.assignment().asScala.map(_.partition()).toSet
+    val pause = pausePartitions && assignment == allPartitions
 
-    consumer.pause(pausedPartitions)
-    consumer.resume(resumedPartition)
+    if (pause) {
+      println(s"Partitions to leave resumed: $resumedPartitionNum")
+      println(s"Partitions to pause: $pausedPartitionsNums")
 
-    consumer.poll(Duration.ofMillis(1000))
+      consumer.pause(pausedPartitions)
+    }
+
+    val records = consumer.poll(Duration.ofMillis(1000))
+
+    if (pause)
+      consumer.resume(pausedPartitions)
+
+    records
   }
 
-  Stream.continually(consumer.poll(Duration.ofMillis(1000)))
+  Stream.continually(pollF())
     .takeWhile(_ ne null)
-    .filterNot(_.isEmpty)
     .foreach { records =>
       println(s"Polled ${records.count()} records from partitions ${records.partitions()}.")
     }

@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: producer
+  name: producer-kafka-240-snapshot
 spec:
-  replicas: 3
   selector:
     matchLabels:
-      run: producer
+      app:  producer-kafka-240-snapshot
+  replicas: 3
   template:
     metadata:
       labels:
-        run: producer
+        app: producer-kafka-240-snapshot
     spec:
       containers:
         - command:
             - /opt/kafka/bin/kafka-producer-perf-test.sh
             - --topic
-            - simple-topic
+            - simple-topic-kafka-240-snapshot
             - --num-records
             - "10000000"
             - --record-size
@@ -27,5 +27,11 @@ spec:
             - bootstrap.servers=pipelines-strimzi-kafka-bootstrap.lightbend.svc.cluster.local:9092
           image: strimzi/kafka
           imagePullPolicy: Always
-          name: producer
-          resources: {}
+          name: producer-kafka-240-snapshot
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"

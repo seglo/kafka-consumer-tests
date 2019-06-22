@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer-tests-kafka-240-snapshot
+spec:
+  selector:
+    matchLabels:
+      app:  kafka-consumer-tests-kafka-240-snapshot
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+      labels:
+        app: kafka-consumer-tests-kafka-240-snapshot
+    spec:
+      containers:
+      - name: kafka-consumer-tests
+        image: seglo/kafka-consumer-tests:0.1.0-KAFKA-240-SNAPSHOT
+        imagePullPolicy: Always
+        env:
+          - name: KAFKA_CONSUMER_TESTS_KAFKA_HOST
+            value: "pipelines-strimzi-kafka-bootstrap.lightbend.svc.cluster.local:9092"
+          - name: KAFKA_CONSUMER_TESTS_TOPIC
+            value: "simple-topic-kafka-240-snapshot"
+          - name: KAFKA_CONSUMER_TESTS_CONSUMERGROUP
+            value: "simple-topic-kafka-240-snapshot-consumer-tests-cg"
+          - name: KAFKA_CONSUMER_TESTS_PARTITIONS
+            value: "10"
+          - name: KAFKA_CONSUMER_TESTS_MAXPOLLRECORDS
+            value: "500"
+          - name: KAFKA_CONSUMER_CLIENT_ID
+            value: "kafka-consumer-tests-kafka-240-snapshot"
+          - name: KAFKA_CONSUMER_TESTS_PAUSE_PARTITIONS
+            value: "true"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "1000m"
+          limits:
+            memory: "1Gi"
+            cpu: "2000m"

@@ -1,6 +1,11 @@
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 import Dependencies._
 
+//val kafkaVersion = "2.2.1"
+//val kafkaVersionTag = "0.1.0-KAFKA-221"
+val kafkaVersion = "2.4.0-SNAPSHOT"
+val kafkaVersionTag = "0.1.0-KAFKA-240-SNAPSHOT"
+
 lazy val root = (project in file("."))
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(JavaAgent)
@@ -9,12 +14,14 @@ lazy val root = (project in file("."))
     inThisBuild(List(
       organization := "com.seglo",
       scalaVersion := "2.12.8",
-      version      := "0.1.0-SNAPSHOT"
+      version      := kafkaVersionTag
     )),
     name := "kafka-consumer-tests",
     libraryDependencies ++= Seq(
       "com.typesafe" % "config" % "1.3.4",
-      "org.apache.kafka" % "kafka-clients" % "2.2.1",
+      "ch.qos.logback" % "logback-classic" % "1.2.3",
+      "org.slf4j" % "log4j-over-slf4j" % "1.7.26",
+      "org.apache.kafka" % "kafka-clients" % kafkaVersion,
       scalaTest % Test
     ),
     javaAgents += JavaAgent("io.prometheus.jmx" % "jmx_prometheus_javaagent" % "0.11.0", arguments = "8080:/opt/docker/conf/jmx-prometheus-exporter-config.yaml"),
