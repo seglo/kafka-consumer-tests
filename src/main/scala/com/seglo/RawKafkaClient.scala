@@ -3,6 +3,7 @@ package com.seglo
 import java.time.Duration
 import java.util.Properties
 
+import com.seglo.latencymetrics.LatencyMetricsInterceptor
 import com.typesafe.config.ConfigFactory
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
@@ -20,6 +21,7 @@ object RawKafkaClient extends App {
   val clientId = conf.getString("clientId")
   val maxPollRecords = conf.getInt("maxPollRecords")
   val pausePartitions = conf.getBoolean("pausePartitions")
+  val sinDelay = conf.getBoolean("sinDelay")
 
   val allPartitions = (0 until partitions).toSet
   val consumerProps: Properties = {
@@ -28,11 +30,16 @@ object RawKafkaClient extends App {
     p.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroup)
     p.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaHost)
     p.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords.toString)
+    p.put(ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG, classOf[LatencyMetricsInterceptor[_, _]].getName)
     p
   }
 
   val consumer = new KafkaConsumer(consumerProps, new ByteArrayDeserializer, new ByteArrayDeserializer)
   consumer.subscribe(List(topic).asJava)
+
+  var delay = true
+  var delayStart = System.currentTimeMillis()
+  val delayIntervalMs = 60000
 
   def pollF(): ConsumerRecords[Array[Byte], Array[Byte]] = {
     val resumedPartitionNum = scala.util.Random.nextInt(partitions)
@@ -50,6 +57,17 @@ object RawKafkaClient extends App {
     }
 
     val records = consumer.poll(Duration.ofMillis(1000))
+
+    if (sinDelay) {
+      if (delay)
+        Thread.sleep(10)
+
+      val now = System.currentTimeMillis()
+      if ((now - delayStart) > delayIntervalMs) {
+        delayStart = now
+        delay = !delay
+      }
+    }
 
     if (pause)
       consumer.resume(pausedPartitions)

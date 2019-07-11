@@ -1,9 +1,9 @@
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 import Dependencies._
 
-//val kafkaVersion = "2.2.1"
+val kafkaVersion = "2.2.1"
 //val kafkaVersionTag = "0.1.0-KAFKA-221"
-val kafkaVersion = "2.4.0-SNAPSHOT"
+//val kafkaVersion = "2.4.0-SNAPSHOT"
 val kafkaVersionTag = "0.1.0-KAFKA-240-SNAPSHOT"
 
 lazy val root = (project in file("."))
